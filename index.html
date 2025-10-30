@@ -11,15 +11,92 @@
 
 <!--[if IE]><script type="text/javascript" src="js/excanvas.js"></script><![endif]--> <!-- js/default.js -->
   <script src="js/jquery/jquery.min.js" type="text/javascript"></script>
-  <script src="js/sigma/sigma.min.js" type="text/javascript" language="javascript"></script>
+  <script src="js/sigma/sigma.min.js" type="text/javascript" language="javascript"></script>	
     <script src="js/sigma/sigma.parseJson.js" type="text/javascript" language="javascript"></script>
+
+
+<script type="text/javascript">
+  // Forțează toate curbele să se „îndoaie” spre interiorul cercului
+  (function () {
+    // Asigurăm namespace-ul
+    sigma.utils && sigma.utils.pkg && sigma.utils.pkg('sigma.canvas.edges');
+
+    function drawCurvedInward(edge, source, target, context, settings) {
+      var prefix = settings('prefix') || '';
+      // Coordonatele deja în spațiul camerei:
+      var sx = source[prefix + 'x'],
+          sy = source[prefix + 'y'],
+          tx = target[prefix + 'x'],
+          ty = target[prefix + 'y'];
+
+      var dx = tx - sx, dy = ty - sy;
+      var dist = Math.sqrt(dx*dx + dy*dy) || 1;
+
+      // Punctul median
+      var mx = (sx + tx) / 2,
+          my = (sy + ty) / 2;
+
+      // Normală (perpendiculară) pe segment
+      var nx = -dy / dist,
+          ny =  dx / dist;
+
+      // Centrul canvasului (nu al grafului) – pentru a decide „interior/exterior”
+      var cx = context.canvas.width  / 2,
+          cy = context.canvas.height / 2;
+
+      // Vector de la centru la mijlocul muchiei
+      var vx = mx - cx,
+          vy = my - cy;
+
+      // Dacă proiecția pe normala curentă e pozitivă, întoarcem sensul (spre interior)
+      var inwardSign = (nx * vx + ny * vy) > 0 ? -1 : 1;
+
+      // Factor de curbură (reglează-l după gust: 0.10–0.30)
+      var k = 0.20;
+      var cpx = mx + nx * inwardSign * k * dist;
+      var cpy = my + ny * inwardSign * k * dist;
+
+      // Desenăm curba
+      context.strokeStyle = edge.color || settings('defaultEdgeColor') || '#999';
+      context.lineWidth  = edge[prefix + 'size'] || settings('defaultEdgeSize') || 1;
+      context.beginPath();
+      context.moveTo(sx, sy);
+      context.quadraticCurveTo(cpx, cpy, tx, ty);
+      context.stroke();
+    }
+
+    // Suprascriem tipul „curve” cu varianta noastră „spre interior”
+    sigma.canvas.edges.curve = drawCurvedInward;
+
+    // Dacă ai muchii de tip „curvedArrow”, le facem și pe ele să folosească aceeași geometrie
+    // (fără vârf de săgeată; putem adăuga vârf ulterior dacă vrei)
+    sigma.canvas.edges.curvedArrow = drawCurvedInward;
+  })();
+</script>
+
+
+	
   <script src="js/fancybox/jquery.fancybox.pack.js" type="text/javascript" language="javascript"></script>
   <script src="js/main.js" type="text/javascript" language="javascript"></script>
 
 
 
 
-
+<script type="text/javascript">
+  document.addEventListener("DOMContentLoaded", function () {
+    var t = setInterval(function () {
+      if (window.sigInst && sigInst.iterEdges) {
+        // Forțează tipul muchiilor la „curve”, ca să prindă override-ul nostru
+        sigInst.iterEdges(function (e) {
+          e.attr = e.attr || {};
+          e.attr.type = 'curve';   // dacă aveai 'curvedArrow', îl poți lăsa; am suprascris și pe acela
+        });
+        sigInst.draw(2,2,2,2);
+        clearInterval(t);
+      }
+    }, 150);
+  });
+</script>
 
 
 <script type="text/javascript">
