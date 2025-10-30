@@ -20,6 +20,59 @@
 
 
 
+
+
+<script type="text/javascript">
+document.addEventListener("DOMContentLoaded", function () {
+  var t = setInterval(function () {
+    if (window.sigInst && sigInst._core && sigInst._core.plotter) {
+
+      // 🔹 1. Forțează toate muchiile să fie curbate
+      sigInst.iterEdges(function(e) {
+        e.attr = e.attr || {};
+        e.attr.type = 'curvedArrow';  // menținem tipul curbat
+      });
+
+      // 🔹 2. Rescriem funcția care desenează curbele → să se îndoaie spre interior
+      const plotter = sigInst._core.plotter;
+      const original = plotter.curvedArrow;
+
+      plotter.curvedArrow = function(ctx, x1, y1, x2, y2, sz, color, type, size) {
+        // calculăm punctul median
+        var dx = x2 - x1;
+        var dy = y2 - y1;
+        var dist = Math.sqrt(dx*dx + dy*dy);
+        var mx = (x1 + x2) / 2;
+        var my = (y1 + y2) / 2;
+
+        // vector normal (perpendicular)
+        var normal = { x: -dy / dist, y: dx / dist };
+
+        // 🔹 factorul de curbură — NEGATIV înseamnă "spre interior"
+        var curvature = -0.25 * dist;
+        mx += normal.x * curvature;
+        my += normal.y * curvature;
+
+        // desenăm linia curbată (fără sageti)
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.quadraticCurveTo(mx, my, x2, y2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = size || 1;
+        ctx.stroke();
+      };
+
+      // 🔹 redesenează rețeaua
+      sigInst.draw(2, 2, 2, 2);
+      clearInterval(t);
+    }
+  }, 200);
+});
+</script>
+
+
+	
+
 <script type="text/javascript">
   document.addEventListener("DOMContentLoaded", function () {
     var t = setInterval(function () {
