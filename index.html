@@ -16,177 +16,6 @@
 
 
 <script type="text/javascript">
-  // Forțează toate curbele să se „îndoaie” spre interiorul cercului
-  (function () {
-    // Asigurăm namespace-ul
-    sigma.utils && sigma.utils.pkg && sigma.utils.pkg('sigma.canvas.edges');
-
-    function drawCurvedInward(edge, source, target, context, settings) {
-      var prefix = settings('prefix') || '';
-      // Coordonatele deja în spațiul camerei:
-      var sx = source[prefix + 'x'],
-          sy = source[prefix + 'y'],
-          tx = target[prefix + 'x'],
-          ty = target[prefix + 'y'];
-
-      var dx = tx - sx, dy = ty - sy;
-      var dist = Math.sqrt(dx*dx + dy*dy) || 1;
-
-      // Punctul median
-      var mx = (sx + tx) / 2,
-          my = (sy + ty) / 2;
-
-      // Normală (perpendiculară) pe segment
-      var nx = -dy / dist,
-          ny =  dx / dist;
-
-      // Centrul canvasului (nu al grafului) – pentru a decide „interior/exterior”
-      var cx = context.canvas.width  / 2,
-          cy = context.canvas.height / 2;
-
-      // Vector de la centru la mijlocul muchiei
-      var vx = mx - cx,
-          vy = my - cy;
-
-      // Dacă proiecția pe normala curentă e pozitivă, întoarcem sensul (spre interior)
-      var inwardSign = (nx * vx + ny * vy) > 0 ? -1 : 1;
-
-      // Factor de curbură (reglează-l după gust: 0.10–0.30)
-      var k = 0.20;
-      var cpx = mx + nx * inwardSign * k * dist;
-      var cpy = my + ny * inwardSign * k * dist;
-
-      // Desenăm curba
-      context.strokeStyle = edge.color || settings('defaultEdgeColor') || '#999';
-      context.lineWidth  = edge[prefix + 'size'] || settings('defaultEdgeSize') || 1;
-      context.beginPath();
-      context.moveTo(sx, sy);
-      context.quadraticCurveTo(cpx, cpy, tx, ty);
-      context.stroke();
-    }
-
-    // Suprascriem tipul „curve” cu varianta noastră „spre interior”
-    sigma.canvas.edges.curve = drawCurvedInward;
-
-    // Dacă ai muchii de tip „curvedArrow”, le facem și pe ele să folosească aceeași geometrie
-    // (fără vârf de săgeată; putem adăuga vârf ulterior dacă vrei)
-    sigma.canvas.edges.curvedArrow = drawCurvedInward;
-  })();
-</script>
-
-
-	
-  <script src="js/fancybox/jquery.fancybox.pack.js" type="text/javascript" language="javascript"></script>
-  <script src="js/main.js" type="text/javascript" language="javascript"></script>
-
-
-
-
-<script type="text/javascript">
-  document.addEventListener("DOMContentLoaded", function () {
-    var t = setInterval(function () {
-      if (window.sigInst && sigInst.iterEdges) {
-        // Forțează tipul muchiilor la „curve”, ca să prindă override-ul nostru
-        sigInst.iterEdges(function (e) {
-          e.attr = e.attr || {};
-          e.attr.type = 'curve';   // dacă aveai 'curvedArrow', îl poți lăsa; am suprascris și pe acela
-        });
-        sigInst.draw(2,2,2,2);
-        clearInterval(t);
-      }
-    }, 150);
-  });
-</script>
-
-
-<script type="text/javascript">
-document.addEventListener("DOMContentLoaded", function () {
-  var t = setInterval(function () {
-    if (window.sigInst && sigInst._core && sigInst._core.plotter) {
-
-      // 🔹 1. Forțează toate muchiile să fie curbate
-      sigInst.iterEdges(function(e) {
-        e.attr = e.attr || {};
-        e.attr.type = 'curvedArrow';  // menținem tipul curbat
-      });
-
-      // 🔹 2. Rescriem funcția care desenează curbele → să se îndoaie spre interior
-      const plotter = sigInst._core.plotter;
-      const original = plotter.curvedArrow;
-
-      plotter.curvedArrow = function(ctx, x1, y1, x2, y2, sz, color, type, size) {
-        // calculăm punctul median
-        var dx = x2 - x1;
-        var dy = y2 - y1;
-        var dist = Math.sqrt(dx*dx + dy*dy);
-        var mx = (x1 + x2) / 2;
-        var my = (y1 + y2) / 2;
-
-        // vector normal (perpendicular)
-        var normal = { x: -dy / dist, y: dx / dist };
-
-        // 🔹 factorul de curbură — NEGATIV înseamnă "spre interior"
-        var curvature = -0.25 * dist;
-        mx += normal.x * curvature;
-        my += normal.y * curvature;
-
-        // desenăm linia curbată (fără sageti)
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.quadraticCurveTo(mx, my, x2, y2);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = size || 1;
-        ctx.stroke();
-      };
-
-      // 🔹 redesenează rețeaua
-      sigInst.draw(2, 2, 2, 2);
-      clearInterval(t);
-    }
-  }, 200);
-});
-</script>
-
-
-	
-
-<script type="text/javascript">
-  document.addEventListener("DOMContentLoaded", function () {
-    var t = setInterval(function () {
-      if (window.sigInst && sigInst._core && sigInst._core.plotter) {
-        // Redefinește funcția care desenează muchii curbate
-        sigInst._core.plotter.curvedArrow = function (ctx, x1, y1, x2, y2, sz, color, type, size) {
-          var dx = x2 - x1;
-          var dy = y2 - y1;
-          var dist = Math.sqrt(dx*dx + dy*dy);
-          var mx = (x1 + x2) / 2;
-          var my = (y1 + y2) / 2;
-
-          // În loc să bombăm în afară, bombăm invers (spre interior)
-          var normal = { x: -dy / dist, y: dx / dist };
-          var curvature = -0.15 * dist; // semnul negativ = curbă spre interior
-          mx += normal.x * curvature;
-          my += normal.y * curvature;
-
-          ctx.beginPath();
-          ctx.moveTo(x1, y1);
-          ctx.quadraticCurveTo(mx, my, x2, y2);
-          ctx.strokeStyle = color;
-          ctx.lineWidth = size;
-          ctx.stroke();
-        };
-        clearInterval(t);
-      }
-    }, 100);
-  });
-</script>
-
-
-	
-
-
-
-<script type="text/javascript">
   document.addEventListener("DOMContentLoaded", function () {
     var t = setInterval(function () {
       if (window.sigInst && sigInst._core && sigInst._core.domElements) {
@@ -277,8 +106,8 @@ canvas.labels {
 
 
 	
-
-	<div id="copyright">
+</div>
+		<div id="copyright">
 		<a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/3.0/"><img alt="Creative Commons License" style="border-width:0" src="images/CC.png" /></a></div>
 	</div>
 <div id="attributepane">
@@ -349,4 +178,3 @@ canvas.labels {
 </div>
 </body>
 </html>
-	
